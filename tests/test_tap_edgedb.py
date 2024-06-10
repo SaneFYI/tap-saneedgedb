@@ -20,11 +20,39 @@ def test_sane_users_stream(config):
     stream = tap.streams["sane_users"]
 
     # Test first page
-    records = list(stream.get_records(context={"limit": 5, "offset": 0}))
-    assert len(records) == 5
+    records = list(stream.get_records(context={"limit": 1, "offset": 0}))
+    assert len(records) == 1
 
-    records = list(stream.get_records(context={"limit": 5, "offset": 5}))
-    assert len(records) == 5
+    records = list(stream.get_records(context={"limit": 2, "offset": 1}))
+    assert len(records) == 2
 
-    records = list(stream.get_records(context={"limit": 5, "offset": 10}))
-    assert len(records) == 5
+    records = list(stream.get_records(context={"limit": 3, "offset": 3}))
+    assert len(records) == 3
+
+def test_sane_spaces_stream(config):
+    tap = TapSaneEdgedbTap(config=config)
+    stream = tap.streams["sane_spaces"]
+
+    # Test first page
+    records = list(stream.get_records(context={"limit": 1, "offset": 0}))
+    assert len(records) == 1
+
+    records = list(stream.get_records(context={"limit": 2, "offset": 1}))
+    assert len(records) == 2
+
+    records = list(stream.get_records(context={"limit": 3, "offset": 3}))
+    assert len(records) == 3
+
+def test_sane_nodes_stream(config):
+    tap = TapSaneEdgedbTap(config=config)
+    stream = tap.streams["sane_space_nodes"]
+
+    # Test first page
+    records = list(stream.get_records(context={"limit": 1, "offset": 0}))
+    assert len(records) == 1
+
+    records = list(stream.get_records(context={"limit": 2, "offset": 1}))
+    assert len(records) == 2
+
+    records = list(stream.get_records(context={"limit": 3, "offset": 3}))
+    assert len(records) == 3

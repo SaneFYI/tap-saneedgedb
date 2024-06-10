@@ -50,6 +50,8 @@ class TapSaneEdgedbTap(Tap):
         """
         return [
             streams.UserModelStream(self),
+            streams.SpaceModelStream(self),
+            streams.SpaceNodeModelStream(self),
         ]
 
 
