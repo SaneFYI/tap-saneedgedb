@@ -8,6 +8,7 @@ import typing as t
 from singer_sdk import typing as th  # JSON Schema typing helpers
 from singer_sdk import Tap, Stream
 import edgedb
+from datetime import datetime, timezone
 
 from tap_saneedgedb.client import SaneEdgedbTapStream
 from tap_saneedgedb.rich_text_serializer import convert_blocks_to_markdown
@@ -32,11 +33,22 @@ class UserModelStream(Stream):
         th.Property("following", th.StringType),
     ).to_dict()
 
+    replication_key = "account_created"
+    is_sorted = True
+
     def __init__(self, tap: Tap):
         super().__init__(tap)
         self.client = edgedb.create_client()
 
+    def get_last_updated(self, context: Dict) -> datetime:
+        starting_timestamp: Optional[str] = self.get_starting_timestamp(context)
+        default_timestamp = "2022-01-01T00:00:00Z"
+        timestamp = starting_timestamp if starting_timestamp is not None else default_timestamp
+        return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
+
     def get_records(self, context: Dict) -> Iterable[dict]:
+        last_updated = self.get_last_updated(context)
+        print(last_updated)
         offset = context.get("offset", 0)
         limit = context.get("limit", 1000)
         query = '''
@@ -58,6 +70,7 @@ class UserModelStream(Stream):
                     }
                 }
                 filter not exists .account_deletion
+                and .account_created >= <datetime>$last_updated
                 order by .account_created
                 offset <int64>$offset
                 limit <int64>$limit
@@ -72,7 +85,7 @@ class UserModelStream(Stream):
             following_list := array_agg(users.following.id)
         }
         '''
-        results = self.client.query(query, offset=offset, limit=limit)
+        results = self.client.query(query, offset=offset, limit=limit, last_updated=last_updated)
         for result in results:
             yield {
                 "id": result.user_id,
@@ -100,11 +113,23 @@ class SpaceModelStream(Stream):
         th.Property("is_public", th.BooleanType),
     ).to_dict()
 
+
+    @property
+    def replication_key(self):
+        return "updated"
+
     def __init__(self, tap: Tap):
         super().__init__(tap)
         self.client = edgedb.create_client()
 
     def get_records(self, context: Dict) -> Iterable[dict]:
+        print("This will be captured")
+        print("This will be captured")
+        print("This will be captured")
+        state = self.get_stream_state()
+        print("state", state)
+        start_date = state.get('updated_at', '1970-01-01T00:00:00Z')
+        print("date", start_date)
         offset = context.get("offset", 0)
         limit = context.get("limit", 1000)
         query = '''
@@ -180,6 +205,10 @@ class SpaceNodeModelStream(Stream):
         th.Property("node_type", th.StringType),
         th.Property("node_url", th.StringType),
     ).to_dict()
+
+    @property
+    def replication_key(self):
+        return "updated"
 
     def __init__(self, tap: Tap):
         super().__init__(tap)
