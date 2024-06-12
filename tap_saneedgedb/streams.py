@@ -20,9 +20,23 @@ else:
 
 SCHEMAS_DIR = importlib_resources.files(__package__) / "schemas"
 
-class UserModelStream(Stream):
-    name = "sane_users"
+class EdgeDbStream(Stream):
     primary_keys = ["id"]
+    replication_key = "created"
+    is_sorted = True
+
+    def __init__(self, tap: Tap):
+        super().__init__(tap)
+        self.client = edgedb.create_client()
+
+    def get_last_updated(self, context: Dict) -> datetime:
+        starting_timestamp: Optional[datetime] = self.get_starting_timestamp(context)
+        default_timestamp = datetime.strptime("2022-01-01T00:00:00Z", '%Y-%m-%dT%H:%M:%SZ')
+        timestamp = starting_timestamp if starting_timestamp is not None else default_timestamp
+        return timestamp.replace(tzinfo=timezone.utc)
+
+class UserModelStream(EdgeDbStream):
+    name = "sane_users"
     schema = th.PropertiesList(
         th.Property("id", th.StringType),
         th.Property("username", th.StringType),
@@ -33,24 +47,8 @@ class UserModelStream(Stream):
         th.Property("following", th.StringType),
     ).to_dict()
 
-    replication_key = "account_created"
-    is_sorted = True
-
-    def __init__(self, tap: Tap):
-        super().__init__(tap)
-        self.client = edgedb.create_client()
-
-    def get_last_updated(self, context: Dict) -> datetime:
-        starting_timestamp: Optional[str] = self.get_starting_timestamp(context)
-        default_timestamp = "2022-01-01T00:00:00Z"
-        timestamp = starting_timestamp if starting_timestamp is not None else default_timestamp
-        return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
-
     def get_records(self, context: Dict) -> Iterable[dict]:
         last_updated = self.get_last_updated(context)
-        print(last_updated)
-        offset = context.get("offset", 0)
-        limit = context.get("limit", 1000)
         query = '''
         with
             users := (
@@ -69,11 +67,9 @@ class UserModelStream(Stream):
                         id
                     }
                 }
-                filter not exists .account_deletion
-                and .account_created >= <datetime>$last_updated
+                filter .account_created >= <datetime>$last_updated
+                and not exists .account_deletion
                 order by .account_created
-                offset <int64>$offset
-                limit <int64>$limit
             )
         select users {
             user_id := users.id,
@@ -85,7 +81,7 @@ class UserModelStream(Stream):
             following_list := array_agg(users.following.id)
         }
         '''
-        results = self.client.query(query, offset=offset, limit=limit, last_updated=last_updated)
+        results = self.client.query(query, last_updated=last_updated)
         for result in results:
             yield {
                 "id": result.user_id,
@@ -97,9 +93,8 @@ class UserModelStream(Stream):
                 "following": result.following_list,
             }
 
-class SpaceModelStream(Stream):
+class SpaceModelStream(EdgeDbStream):
     name = "sane_spaces"
-    primary_keys = ["id"]
     schema = th.PropertiesList(
         th.Property("id", th.StringType),
         th.Property("title", th.StringType),
@@ -113,25 +108,8 @@ class SpaceModelStream(Stream):
         th.Property("is_public", th.BooleanType),
     ).to_dict()
 
-
-    @property
-    def replication_key(self):
-        return "updated"
-
-    def __init__(self, tap: Tap):
-        super().__init__(tap)
-        self.client = edgedb.create_client()
-
     def get_records(self, context: Dict) -> Iterable[dict]:
-        print("This will be captured")
-        print("This will be captured")
-        print("This will be captured")
-        state = self.get_stream_state()
-        print("state", state)
-        start_date = state.get('updated_at', '1970-01-01T00:00:00Z')
-        print("date", start_date)
-        offset = context.get("offset", 0)
-        limit = context.get("limit", 1000)
+        last_updated = self.get_last_updated(context)
         query = '''
         WITH
             spaces := (
@@ -155,11 +133,10 @@ class SpaceModelStream(Stream):
                         id
                     }
                 }
-                filter not exists .deletion
+                filter .created >= <datetime>$last_updated
+                and not exists .deletion
                 and .is_public
                 order by .created
-                offset <int64>$offset
-                limit <int64>$limit
             )
         SELECT spaces {
             space_id := spaces.id,
@@ -174,7 +151,7 @@ class SpaceModelStream(Stream):
             followers_list := array_agg(spaces.followers.id)
         }
         '''
-        results = self.client.query(query, offset=offset, limit=limit)
+        results = self.client.query(query, last_updated=last_updated)
         for result in results:
             yield {
                 "id": result.id,
@@ -189,9 +166,8 @@ class SpaceModelStream(Stream):
                 "followers": result.followers_list,
             }
 
-class SpaceNodeModelStream(Stream):
+class SpaceNodeModelStream(EdgeDbStream):
     name = "sane_space_nodes"
-    primary_keys = ["id"]
     schema = th.PropertiesList(
         th.Property("id", th.StringType),
         th.Property("space_id", th.StringType),
@@ -206,17 +182,8 @@ class SpaceNodeModelStream(Stream):
         th.Property("node_url", th.StringType),
     ).to_dict()
 
-    @property
-    def replication_key(self):
-        return "updated"
-
-    def __init__(self, tap: Tap):
-        super().__init__(tap)
-        self.client = edgedb.create_client()
-
     def get_records(self, context: Dict) -> Iterable[dict]:
-        offset = context.get("offset", 0)
-        limit = context.get("limit", 1000)
+        last_updated = self.get_last_updated(context)
         query = '''
         WITH
             nodes := (
@@ -245,12 +212,11 @@ class SpaceNodeModelStream(Stream):
                         }
                     }
                 }
-                filter .owning_space.is_public
-                and not exists .owning_space.deletion
+                filter .created >= <datetime>$last_updated
+                and .owning_space.is_public
                 and not exists .deletion
+                and not exists .owning_space.deletion
                 order by .created
-                offset <int64>$offset
-                limit <int64>$limit
             )
         SELECT nodes {
             node_id := nodes.id,
@@ -266,7 +232,7 @@ class SpaceNodeModelStream(Stream):
             child_blocks := nodes.child_blocks { block_type, block_data },
         }
         '''
-        results = self.client.query(query, offset=offset, limit=limit)
+        results = self.client.query(query, last_updated=last_updated)
         for result in results:
             yield {
                 "id": result.id,
