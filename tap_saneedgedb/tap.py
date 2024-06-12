@@ -25,7 +25,7 @@ class TapSaneEdgedbTap(Tap):
             default=5656
         ),
         th.Property(
-            "edgedb_port",
+            "edgedb_user",
             th.StringType,
             default="edgedb"
         ),
