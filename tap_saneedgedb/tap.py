@@ -17,28 +17,36 @@ class TapSaneEdgedbTap(Tap):
         th.Property(
             "edgedb_host",
             th.StringType,
-            required=True,
         ),
         th.Property(
             "edgedb_port",
             th.IntegerType,
-            default=5656
         ),
         th.Property(
             "edgedb_user",
             th.StringType,
-            default="edgedb"
+        ),
+        th.Property(
+            "edgedb_branch",
+            th.StringType,
+        ),
+        th.Property(
+            "edgedb_database",
+            th.StringType,
         ),
         th.Property(
             "edgedb_password",
             th.StringType,
-            required=True,
+            secret=True,
+        ),
+        th.Property(
+            "edgedb_secret_key",
+            th.StringType,
             secret=True,
         ),
         th.Property(
             "edgedb_client_tls_security",
             th.StringType,
-            default="strict"
         ),
     ).to_dict()
 
@@ -48,6 +56,7 @@ class TapSaneEdgedbTap(Tap):
         Returns:
             A list of discovered streams.
         """
+        print("connecting")
         return [
             streams.UserModelStream(self),
             streams.SpaceModelStream(self),
