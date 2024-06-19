@@ -21,13 +21,21 @@ else:
 SCHEMAS_DIR = importlib_resources.files(__package__) / "schemas"
 
 class EdgeDbStream(Stream):
-    primary_keys = ["id"]
-    replication_key = "created"
+    primary_keys = ["id"]   
     is_sorted = True
 
     def __init__(self, tap: Tap):
         super().__init__(tap)
-        self.client = edgedb.create_client()
+        print("Connecting to Edgedb instance", self.config.get('edgedb_host'))
+        self.client = edgedb.create_client(
+            host = self.config.get('edgedb_host'),
+            port = self.config.get('edgedb_port'),
+            user = self.config.get('edgedb_user'),
+            password = self.config.get('edgedb_password'),
+            secret_key = self.config.get('edgedb_secret_key'),
+            database = self.config.get('edgedb_database'),
+            tls_security = self.config.get('edgedb_client_tls_security'),
+        )
 
     def get_last_updated(self, context: Dict) -> datetime:
         starting_timestamp: Optional[datetime] = self.get_starting_timestamp(context)
@@ -37,6 +45,7 @@ class EdgeDbStream(Stream):
 
 class UserModelStream(EdgeDbStream):
     name = "sane_users"
+    replication_key = "created"
     schema = th.PropertiesList(
         th.Property("id", th.StringType),
         th.Property("username", th.StringType),
@@ -95,6 +104,7 @@ class UserModelStream(EdgeDbStream):
 
 class SpaceModelStream(EdgeDbStream):
     name = "sane_spaces"
+    replication_key = "updated"
     schema = th.PropertiesList(
         th.Property("id", th.StringType),
         th.Property("title", th.StringType),
@@ -133,10 +143,10 @@ class SpaceModelStream(EdgeDbStream):
                         id
                     }
                 }
-                filter .created >= <datetime>$last_updated
+                filter .updated >= <datetime>$last_updated
                 and not exists .deletion
                 and .is_public
-                order by .created
+                order by .updated
             )
         SELECT spaces {
             space_id := spaces.id,
@@ -168,6 +178,7 @@ class SpaceModelStream(EdgeDbStream):
 
 class SpaceNodeModelStream(EdgeDbStream):
     name = "sane_space_nodes"
+    replication_key = "updated"
     schema = th.PropertiesList(
         th.Property("id", th.StringType),
         th.Property("space_id", th.StringType),
@@ -212,11 +223,11 @@ class SpaceNodeModelStream(EdgeDbStream):
                         }
                     }
                 }
-                filter .created >= <datetime>$last_updated
+                filter .updated >= <datetime>$last_updated
                 and .owning_space.is_public
                 and not exists .deletion
                 and not exists .owning_space.deletion
-                order by .created
+                order by .updated
             )
         SELECT nodes {
             node_id := nodes.id,
