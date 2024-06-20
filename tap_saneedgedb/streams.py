@@ -116,6 +116,7 @@ class SpaceModelStream(EdgeDbStream):
         th.Property("owner", th.StringType),
         th.Property("followers", th.StringType),
         th.Property("is_public", th.BooleanType),
+        th.Property("categories", th.StringType),
     ).to_dict()
 
     def get_records(self, context: Dict) -> Iterable[dict]:
@@ -141,7 +142,8 @@ class SpaceModelStream(EdgeDbStream):
                     },
                     followers: {
                         id
-                    }
+                    },
+                    categories,
                 }
                 filter .updated >= <datetime>$last_updated
                 and not exists .deletion
@@ -158,7 +160,8 @@ class SpaceModelStream(EdgeDbStream):
             is_public := spaces.is_public,
             owner_id := spaces.owner.id,
             nodes_list := array_agg(spaces.nodes.id),
-            followers_list := array_agg(spaces.followers.id)
+            followers_list := array_agg(spaces.followers.id),
+            categories := spaces.categories,
         }
         '''
         results = self.client.query(query, last_updated=last_updated)
@@ -191,6 +194,7 @@ class SpaceNodeModelStream(EdgeDbStream):
         th.Property("node_content", th.StringType),
         th.Property("node_type", th.StringType),
         th.Property("node_url", th.StringType),
+        th.Property("categories", th.StringType),
     ).to_dict()
 
     def get_records(self, context: Dict) -> Iterable[dict]:
@@ -221,7 +225,8 @@ class SpaceNodeModelStream(EdgeDbStream):
                         owner: {
                             id
                         }
-                    }
+                    },
+                    categories,
                 }
                 filter .updated >= <datetime>$last_updated
                 and .owning_space.is_public
@@ -241,6 +246,7 @@ class SpaceNodeModelStream(EdgeDbStream):
             node_type := nodes.node_type,
             node_url := nodes.node_url ?? "",
             child_blocks := nodes.child_blocks { block_type, block_data },
+            categories := nodes.categories,
         }
         '''
         results = self.client.query(query, last_updated=last_updated)
