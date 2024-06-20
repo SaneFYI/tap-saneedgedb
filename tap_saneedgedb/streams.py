@@ -23,6 +23,7 @@ SCHEMAS_DIR = importlib_resources.files(__package__) / "schemas"
 class EdgeDbStream(Stream):
     primary_keys = ["id"]   
     is_sorted = True
+    selected_by_default = False
 
     def __init__(self, tap: Tap):
         super().__init__(tap)
