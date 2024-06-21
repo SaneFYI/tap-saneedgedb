@@ -37,7 +37,6 @@ def convert_blocks_to_markdown(child_blocks: List[Any]) -> str:
                     else:
                         content.inline_link(block['href'], block['href'])
                 else:
-                    print("missing", block['type'], block)
                     raise ValueError("Unexpected block type")
             continue
         

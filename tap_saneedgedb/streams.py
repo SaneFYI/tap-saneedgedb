@@ -23,11 +23,10 @@ SCHEMAS_DIR = importlib_resources.files(__package__) / "schemas"
 class EdgeDbStream(Stream):
     primary_keys = ["id"]   
     is_sorted = True
-    selected_by_default = False
 
     def __init__(self, tap: Tap):
         super().__init__(tap)
-        print("Connecting to Edgedb instance", self.config.get('edgedb_host'))
+        self.logger.info("Connecting to Edgedb instance", self.config.get('edgedb_host'))
         self.client = edgedb.create_client(
             host = self.config.get('edgedb_host'),
             port = self.config.get('edgedb_port'),
