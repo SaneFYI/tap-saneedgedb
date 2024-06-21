@@ -8,10 +8,6 @@ plugins:
   extractors:
   - name: "tap-saneedgedb"
     namespace: "tap_saneedgedb"
-    capabilities:
-      - state
-      - catalog
-      - discover
     pip_url: -e .
     config:
       start_date: '2010-01-01T00:00:00Z'
