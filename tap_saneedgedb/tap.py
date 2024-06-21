@@ -15,6 +15,10 @@ class TapSaneEdgedbTap(Tap):
 
     config_jsonschema = th.PropertiesList(
         th.Property(
+            "stream_name",
+            th.StringType,
+        ),
+        th.Property(
             "edgedb_host",
             th.StringType,
         ),
@@ -56,7 +60,14 @@ class TapSaneEdgedbTap(Tap):
         Returns:
             A list of discovered streams.
         """
-        print("connecting")
+        stream_by_name = {
+            "sane_users": streams.UserModelStream,
+            "sane_spaces": streams.SpaceModelStream,
+            "sane_space_nodes": streams.SpaceNodeModelStream,
+        }
+        if self.config.get("stream_name"):
+            return [stream_by_name[self.config["stream_name"]](self)]
+
         return [
             streams.UserModelStream(self),
             streams.SpaceModelStream(self),
