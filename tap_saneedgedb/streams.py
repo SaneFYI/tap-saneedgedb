@@ -177,6 +177,7 @@ class SpaceModelStream(EdgeDbStream):
                 "owner": result.owner_id,
                 "nodes": result.nodes_list,
                 "followers": result.followers_list,
+                "categories": result.categories,
             }
 
 class SpaceNodeModelStream(EdgeDbStream):
@@ -263,4 +264,5 @@ class SpaceNodeModelStream(EdgeDbStream):
                 "node_content": result.node_content,
                 "node_type": result.node_type,
                 "node_url": result.node_url,
+                "categories": result.categories,
             }
