@@ -147,7 +147,6 @@ class SpaceModelStream(EdgeDbStream):
                 }
                 filter .updated >= <datetime>$last_updated
                 and not exists .deletion
-                and .is_public
                 order by .updated
             )
         SELECT spaces {
@@ -230,7 +229,6 @@ class SpaceNodeModelStream(EdgeDbStream):
                     categories,
                 }
                 filter .updated >= <datetime>$last_updated
-                and .owning_space.is_public
                 and not exists .deletion
                 and not exists .owning_space.deletion
                 order by .updated
