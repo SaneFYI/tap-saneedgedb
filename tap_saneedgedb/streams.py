@@ -254,8 +254,8 @@ class SpaceNodeModelStream(EdgeDbStream):
         for result in results:
             yield {
                 "id": result.id,
-                "space_id": result.id,
-                "user_id": result.id,
+                "space_id": result.space_id,
+                "user_id": result.user_id,
                 "title":result.title, 
                 "deletion": result.deleted,
                 "created": result.created,
